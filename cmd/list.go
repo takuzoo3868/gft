@@ -11,6 +11,8 @@ import (
 	"github.com/takuzoo3868/gft/proto"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"path/filepath"
 )
 
 func listFiles(ctx context.Context, client proto.FileTransferServiceClient) error {
@@ -41,9 +43,27 @@ func ListCommand() cli.Command {
 				Value: ":8080",
 				Usage: "server address",
 			},
+			cli.StringFlag{
+				Name:  "tls-path",
+				Value: "",
+				Usage: "directory to the TLS server.crt file",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			options := []grpc.DialOption{}
+			if p := c.String("tls-path"); p != "" {
+				creds, err := credentials.NewClientTLSFromFile(
+					filepath.Join(p, "server.crt"),
+					"")
+				if err != nil {
+					log.Println(err)
+					return err
+				}
+				options = append(options, grpc.WithTransportCredentials(creds))
+			} else {
+				options = append(options, grpc.WithInsecure())
+			}
+
 			addr := c.String("a")
 			if !strings.Contains(addr, ":") {
 				addr += ":8080"

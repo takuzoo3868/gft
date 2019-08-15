@@ -11,6 +11,7 @@ import (
 	"github.com/takuzoo3868/gft/proto"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type fileTransferService struct {
@@ -74,6 +75,11 @@ func ServeCommand() cli.Command {
 				Value: ".",
 				Usage: "base directory to upload files",
 			},
+			cli.StringFlag{
+				Name:  "tls-path",
+				Value: "",
+				Usage: "directory to the TLS server.crt/server.key file",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			lis, err := net.Listen("tcp", c.String("a"))
@@ -83,6 +89,17 @@ func ServeCommand() cli.Command {
 			defer lis.Close()
 
 			options := []grpc.ServerOption{}
+			if p := c.String("tls-path"); p != "" {
+				creds, err := credentials.NewServerTLSFromFile(
+					filepath.Join(p, "server.crt"),
+					filepath.Join(p, "server.key"))
+				if err != nil {
+					log.Println(err)
+					return err
+				}
+				options = append(options, grpc.Creds(creds))
+			}
+
 			log.Println("server started:", lis.Addr().String())
 			server := grpc.NewServer(options...)
 			proto.RegisterFileTransferServiceServer(server, &fileTransferService{root: c.String("d")})
